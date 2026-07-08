@@ -36,16 +36,15 @@ Run all `gh` commands with elevated network access. If CLI auth is required, con
 6. Implement the selected fixes locally.
    - Keep each code change traceable back to the thread or feedback cluster it addresses.
    - If a comment calls for explanation rather than code, draft the response rather than forcing a code change.
-7. Reply without resolving the conversation.
-   - When the user says "resolve a comment", interpret it as making the code or documentation change, validating it, and replying with the commit and validation evidence.
-   - Never call `resolveReviewThread` or otherwise mark a review conversation resolved. Conversation resolution belongs exclusively to the original comment author.
+7. Perform only authorized GitHub writes.
+   - Treat addressing feedback, replying to a comment, and marking a review thread resolved as separate write actions.
+   - Do not call `resolveReviewThread` unless the user explicitly asks to mark that thread resolved.
 8. Summarize the result.
-   - List which comments were addressed, which were intentionally left open, what tests or checks support the change, and which conversations remain for their authors to resolve.
+   - List which comments were addressed, which were intentionally left open, what tests or checks support the change, and whether any explicitly authorized thread-resolution action was performed.
 
 ## Write Safety
 
-- Do not reply on GitHub or submit a review unless the user explicitly asks for that write action.
-- Never resolve review threads, even when the user says "resolve comment"; address and reply only, leaving conversation resolution to the original comment author.
+- Do not reply on GitHub, resolve review threads, or submit a review unless the user explicitly asks for that specific write action.
 - If review comments conflict with each other or would cause a behavioral regression, surface the tradeoff before making changes.
 - If a comment is ambiguous, ask for clarification or draft a proposed response instead of guessing.
 - Do not treat flat PR comments from the connector as a complete representation of review-thread state.
