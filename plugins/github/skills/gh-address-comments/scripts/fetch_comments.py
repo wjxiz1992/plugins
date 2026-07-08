@@ -35,12 +35,14 @@ query(
       url
       title
       state
+      author { login }
 
       # Top-level "Conversation" comments (issue comments on the PR)
       comments(first: 100, after: $commentsCursor) {
         pageInfo { hasNextPage endCursor }
         nodes {
           id
+          url
           body
           createdAt
           updatedAt
@@ -53,6 +55,7 @@ query(
         pageInfo { hasNextPage endCursor }
         nodes {
           id
+          url
           state
           body
           submittedAt
@@ -78,6 +81,7 @@ query(
           comments(first: 100) {
             nodes {
               id
+              url
               body
               createdAt
               updatedAt
@@ -167,6 +171,60 @@ def gh_api_graphql(
     return _run_json(cmd, stdin=QUERY)
 
 
+def normalize_feedback(
+    conversation_comments: list[dict[str, Any]],
+    reviews: list[dict[str, Any]],
+    review_threads: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Flatten every PR feedback surface and sort it newest first."""
+    feedback: list[dict[str, Any]] = []
+
+    for comment in conversation_comments:
+        feedback.append({
+            "surface": "conversation_comment",
+            "timestamp": comment["createdAt"],
+            "id": comment["id"],
+            "url": comment.get("url"),
+            "author": (comment.get("author") or {}).get("login"),
+            "body": comment.get("body") or "",
+        })
+
+    for review in reviews:
+        body = review.get("body") or ""
+        if body.strip():
+            feedback.append({
+                "surface": "review_body",
+                "timestamp": review["submittedAt"],
+                "id": review["id"],
+                "url": review.get("url"),
+                "author": (review.get("author") or {}).get("login"),
+                "body": body,
+                "review_state": review.get("state"),
+            })
+
+    for thread in review_threads:
+        thread_context = {
+            "thread_id": thread["id"],
+            "thread_is_resolved": thread["isResolved"],
+            "thread_is_outdated": thread["isOutdated"],
+            "path": thread.get("path"),
+            "line": thread.get("line"),
+            "original_line": thread.get("originalLine"),
+        }
+        for comment in (thread.get("comments") or {}).get("nodes") or []:
+            feedback.append({
+                "surface": "review_thread_comment",
+                "timestamp": comment["createdAt"],
+                "id": comment["id"],
+                "url": comment.get("url"),
+                "author": (comment.get("author") or {}).get("login"),
+                "body": comment.get("body") or "",
+                **thread_context,
+            })
+
+    return sorted(feedback, key=lambda item: item["timestamp"], reverse=True)
+
+
 def fetch_all(owner: str, repo: str, number: int) -> dict[str, Any]:
     conversation_comments: list[dict[str, Any]] = []
     reviews: list[dict[str, Any]] = []
@@ -198,6 +256,7 @@ def fetch_all(owner: str, repo: str, number: int) -> dict[str, Any]:
                 "url": pr["url"],
                 "title": pr["title"],
                 "state": pr["state"],
+                "author": (pr.get("author") or {}).get("login"),
                 "owner": owner,
                 "repo": repo,
             }
@@ -218,8 +277,10 @@ def fetch_all(owner: str, repo: str, number: int) -> dict[str, Any]:
             break
 
     assert pr_meta is not None
+    ordered_feedback = normalize_feedback(conversation_comments, reviews, review_threads)
     return {
         "pull_request": pr_meta,
+        "ordered_feedback": ordered_feedback,
         "conversation_comments": conversation_comments,
         "reviews": reviews,
         "review_threads": review_threads,

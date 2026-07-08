@@ -3,4 +3,4 @@ interface:
   short_description: "Address actionable PR feedback"
   icon_small: "./assets/github-small.svg"
   icon_large: "./assets/github.png"
-  default_prompt: "Use $gh-address-comments to review unresolved pull request feedback, implement the selected fixes, and summarize what changed."
+  default_prompt: "Use $gh-address-comments to inspect all PR review surfaces, address the latest actionable feedback, reply with evidence, and leave conversation resolution to the comment author."
